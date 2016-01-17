@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="lib/normalise.css" />
+        <link rel="stylesheet" href="lib/gradients.css" />
+        <link rel="stylesheet" href="style.css" />
+        <link href="//fonts.googleapis.com/css?family=Yanone+Kaffeesatz:200,300,400,700" rel="stylesheet" />
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:300,700" rel="stylesheet" />
+        <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="lib/soundmanager.js"></script>
+        <title>Soundboard</title>
+    </head>
+
+    <body>
+        <div id="board"></div>
+        <div id="titlecard">
+            <span class="title loading">
+                <span class="inner">Loading</span>
+            </span>
+        </div>
+
+        <script>
+            var COLOURS = [
+                'bluegloss', 'orangegloss', 'pinkgloss', 'redgloss',
+                'greygloss', 'greybluegloss',
+                'brown3d', 'gold3d', 'green3d', 'grey3d', 'yellow3d',
+                'olive3d', 'orange3d', 'pink3d', 'purple3d', 'red3d',
+                'bluegloss', 'orangegloss', 'pinkgloss', 'redgloss',
+                'greygloss', 'greybluegloss',
+                'brown3d', 'gold3d', 'green3d', 'grey3d', 'yellow3d',
+                'olive3d', 'orange3d', 'pink3d', 'purple3d', 'red3d'
+            ];
+
+            var DROPBOX_URL = 'https://dl.dropboxusercontent.com/u/[USER_ID]/[DIRECTORY]/';
+            var KEYS = [
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+                'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+                'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',
+                'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.'
+            ];
+
+            var BASE_URL;
+            var SOUND_QUEUE = [];
+
+            function initBoard(board) {
+                function popSoundQueue() {
+                    var item = SOUND_QUEUE.shift();
+
+                    if(item) {
+                        addSound(item[0], item[1], item[2]);
+                    }
+
+                    if(!SOUND_QUEUE.length) {
+                        $('#titlecard').fadeOut(
+                            function() {
+                                $('#titlecard').remove();
+                            }
+                        );
+                    }
+                }
+
+                function cueSound(title, url, index) {
+                    SOUND_QUEUE.push(
+                        [title, url, index]
+                    );
+                }
+
+                function addSound(title, url, index) {
+                    var div = $('<div>').addClass('item');
+                    var sound = soundManager.createSound(
+                        {
+                            url: BASE_URL + url,
+                            autoLoad: true,
+                            onload: function(success) {
+                                if(success) {
+                                    div.addClass('loaded');
+                                }
+                            },
+                            onplay: function() {
+                                div.addClass('playing');
+                            },
+                            onfinish: function() {
+                                div.removeClass('playing');
+                            }
+                        }
+                    );
+
+                    var titleContainer = $('<span>').addClass('title');
+                    var inner = $('<span>').addClass('inner').text(title);
+                    var colour = COLOURS.shift(0);
+                    var key = KEYS.shift(0);
+                    var keyIndicator = $('<span>').addClass('key').text(key);
+
+                    titleContainer.append(inner);
+                    div.append(titleContainer);
+                    div.append(keyIndicator);
+                    div.addClass(colour);
+
+                    function playAudio() {
+                        sound.play();
+                    }
+
+                    div.on('mousedown',
+                        function(e) {
+                            playAudio();
+                            e.preventDefault();
+                        }
+                    );
+
+                    $(window).on('keydown',
+                        function(e) {
+                            var letter = String.fromCharCode(e.keyCode || e.which);
+
+                            if(letter == key) {
+                                playAudio();
+                            }
+                        }
+                    );
+
+                    $('#board').append(div);
+                    setTimeout(popSoundQueue, 100);
+                }
+
+                $('#titlecard .title').removeClass('loading').find('.inner').text(board.title);
+
+                $.each(board.sounds,
+                    function(i, clip) {
+                        cueSound(clip.title, clip.url);
+                    }
+                );
+
+                if(SOUND_QUEUE.length) {
+                    popSoundQueue();
+                }
+            }
+
+            $(document).ready(
+                function() {
+                    var key = window.location.hash ? window.location.hash.substr(1) : null;
+                    var jsurl = DROPBOX_URL + key + '/board.js?callback=initBoard';
+                    var script = document.createElement('script');
+
+                    soundManager.setup(
+                        {
+                            url: 'lib/swf/',
+                            onready: function() {
+                                if(key) {
+                                    BASE_URL = DROPBOX_URL + key + '/';
+                                    script.src = jsurl;
+                                    $('body').append(script);
+                                }
+                            },
+                            ontimeout: function() {
+                                // Hrmm, SM2 could not start. Missing SWF? Flash blocked? Show an error, etc.?
+                            }
+                        }
+                    );
+                }
+            );
+        </script>
+    </body>
+</html>
